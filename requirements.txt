@@ -1,0 +1,5 @@
+pandas>=2.3
+pyarrow>=21
+shapely>=2.0
+scikit-learn>=1.6
+tabulate>=0.9
