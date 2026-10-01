@@ -1,0 +1,6 @@
+data/
+__pycache__/
+.venv/
+.claude/
+# 棟の重心座標を含むため、公開範囲の判断(CLAUDE.md §4)まではコミットしない
+notes/zone-anomalies-map.html
