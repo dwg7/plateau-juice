@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plateau-juice 札幌</title>
+<meta name="description" content="PLATEAU札幌の建築物から、幾何を切り離して属性だけを取り出し、空間ID(z/x/y)の格子で眺める。">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.11.1/dist/maplibre-gl.css">
+<style>
+:root{--bg:#fff;--fg:#1d2733;--sub:#5b6773;--line:#d9dee3;--accent:#045a8d;--card:#f5f7f9}
+@media (prefers-color-scheme:dark){:root{--bg:#14181d;--fg:#e6eaee;--sub:#9aa5b0;--line:#2c343c;--accent:#74a9cf;--card:#1b2127}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.7 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif}
+main{max-width:960px;margin:0 auto;padding:0 16px 48px}
+h1{font-size:1.6rem;line-height:1.3;margin:28px 0 8px}
+h2{font-size:1.2rem;margin:36px 0 8px}
+.lead{color:var(--sub);margin:0 0 16px}
+.key{display:grid;gap:12px;margin:20px 0}
+@media(min-width:720px){.key{grid-template-columns:repeat(3,1fr)}}
+.key div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.key b{display:block;margin-bottom:4px}
+.ctl{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end;margin:16px 0 8px}
+.ctl label{display:flex;flex-direction:column;font-size:.85rem;color:var(--sub);gap:4px}
+.ctl select,.ctl input[type=range]{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.ctl input[type=range]{padding:0;width:180px}
+#desc{margin:4px 0 8px;font-size:.95rem}
+#wrap{position:relative;height:70vh;min-height:420px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+#map{position:absolute;inset:0}
+#legend{position:absolute;left:10px;bottom:30px;z-index:2;background:color-mix(in srgb,var(--bg) 88%,transparent);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:.78rem;max-width:230px;color:var(--fg)}
+#legend .bar{height:10px;border-radius:3px;margin:4px 0 2px}
+#legend .row{display:flex;justify-content:space-between;color:var(--sub)}
+#legend i{display:inline-block;width:12px;height:12px;margin-right:4px;vertical-align:-2px;border-radius:2px}
+.note{font-size:.88rem;color:var(--sub)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-size:.85rem;color:var(--sub)}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>札幌の建物は、どんな「属性」を持っているか</h1>
+<p class="lead">PLATEAU(3D都市モデル)の建築物から、立体形状と個体識別子を切り離し、用途・構造・建築年・階数といった<b>属性だけ</b>を取り出して、空間ID(z/x/y)の格子で眺めます。</p>
+
+<div class="key">
+  <div><b>① データがあるのは約6割</b>646,474棟のうち、属性が付いているのは391,841棟(60.6%)。多くは市街化区域内の主たる建物で、郊外と高さ約5m以下の小さな建物には、ほとんど付いていません。</div>
+  <div><b>② 札幌は「木造の住宅」が主役</b>属性のある建物の約76%が住宅、81%が木造。最も多い組み合わせは「住宅×木造×1980年代」(17%)。耐火造は新しい建物ほど増えます。</div>
+  <div><b>③ 用途地域と実態は、よく合う</b>第1種低層住居専用地域では住宅が94%。建物の属性と用途地域のポリゴンが食い違う棟は2.7%で、その多くは2019年の用途地域の変更による時点のずれと見られます(推論)。</div>
+</div>
+
+<h2>地図で見る</h2>
+<div class="ctl">
+  <label>見るもの<select id="metric"></select></label>
+  <label>集計の大きさ<select id="zsel">
+    <option value="15">約900m(z=15)</option>
+    <option value="16" selected>約450m(z=16)</option>
+    <option value="17">約220m(z=17)</option>
+  </select></label>
+  <label>セルの最小棟数:<span id="minv">30</span><input id="min" type="range" min="0" max="100" value="30"></label>
+</div>
+<div id="desc"></div>
+<div id="wrap"><div id="map"></div><div id="legend"></div></div>
+<p class="note">色が薄い灰色のセルは、棟数が最小棟数に満たず、割合を出していません。塗りは道路・建物・注記の下に置いています。セルをクリックすると中身が見られます。</p>
+
+<h2>読み方の注意</h2>
+<table>
+<tr><th>範囲</th><td>属性が付いているのは、主に市街化区域内の主たる建物です。市街化調整区域の建物(属性ありは0.9%)や、市街化区域内でも高さ約5m以下の建物(同じく7〜11%)には、ほとんど付きません。ここでの割合は、「属性のある建物」の中での割合で、札幌の全建物の割合ではありません。</td></tr>
+<tr><th>年代</th><td>築年の構成は、解体・建て替えを経て残った建物のものです(生存バイアス)。「その年代にどれだけ建ったか」ではありません。</td></tr>
+<tr><th>用途地域</th><td>地図の用途地域は、最新のポリゴン(urf)を使っています。建物属性側の用途地域は、2019年の変更前のものが残っている区域があります。</td></tr>
+<tr><th>格子</th><td>空間ID(z/x/y)は、Webの地図タイルと同じ分割です。z=17 を基本とし、z=16・15 は親セルへの足し合わせです。</td></tr>
+<tr><th>幾何・個体識別子</th><td>建物の形状とGMLの個体識別子は使っていません。表示するのは、セルごとの合計値のみです。</td></tr>
+</table>
+
+<footer>
+出典: 国土交通省 Project PLATEAU「3D都市モデル(令和2年度)札幌市」(<a href="https://www.geospatial.jp/ckan/dataset/plateau-01100-sapporo-shi-2020">G空間情報センター</a>)を加工して作成(<a href="https://creativecommons.org/licenses/by/4.0/legalcode.ja">CC BY 4.0</a>)。背景地図: <a href="https://github.com/hfu/stars">bvmap-starlight</a>(国土地理院最適化ベクトルタイル)。<br>
+コードと分析の記録: <a href="https://github.com/dwg7/plateau-juice">dwg7/plateau-juice</a>(<code>notes/findings.md</code>、<code>DECISIONS.md</code>)
+</footer>
+</main>
+
+<script type="module">
+import * as ml from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.11.1/dist/maplibre-gl.mjs';
+const maplibregl = ml.default ?? ml;
+const STYLE = 'https://stars.optgeo.org/style/bvmap-starlight.json';
+const RAMP = ['#f1eef6', '#bdc9e1', '#74a9cf', '#2b8cbe', '#045a8d'];
+const pct = v => (v * 100).toFixed(1) + '%';
+
+// 指標の定義。den: 割合の分母(最小棟数の判定に使う)。val: セル合計から値を作る。
+const METRICS = [
+  { id: 'cov', label: '属性の充実率(属性のある棟の割合)', den: 'n', val: c => c.ns / c.n, dom: [0, 1], fmt: pct,
+    desc: '調査範囲の目安です。濃いほど、そのセルの建物に属性が付いています。郊外・小さな建物の多い所は薄くなります。' },
+  { id: 'res', label: '住宅系の割合', den: 'ns', val: c => c.res / c.ns, dom: [0.3, 1], fmt: pct,
+    desc: '属性のある建物のうち、住宅・共同住宅・店舗等併用住宅などの割合。濃いほど住宅地です。' },
+  { id: 'apt', label: '共同住宅の割合', den: 'ns', val: c => c.apt / c.ns, dom: [0, 0.6], fmt: pct,
+    desc: '属性のある建物のうち、共同住宅(マンション・アパート)の割合。' },
+  { id: 'nonres', label: '業務・商業・工場・倉庫の割合', den: 'ns', val: c => (c.comm + c.ind) / c.ns, dom: [0, 0.4], fmt: pct,
+    desc: '住宅系以外の、はたらく・商う場所の建物の割合。都心と幹線沿い、工業地域で濃くなります。' },
+  { id: 'fire', label: '耐火造の割合', den: 'st_known', val: c => c.st_fire / c.st_known, dom: [0, 0.6], fmt: pct,
+    desc: '構造が分かる建物のうち、耐火造の割合。都心や中高層の集まる所で濃くなります。' },
+  { id: 'year', label: '平均の建築年', den: 'yr_n', val: c => c.yr_sum / c.yr_n, dom: [1965, 2015], fmt: v => v.toFixed(0) + '年',
+    desc: '建築年が分かる建物の平均。濃いほど新しい。現存する建物の年代構成で、当時の建築動向ではありません。' },
+  { id: 'floor', label: '平均の階数(地上)', den: 'fl_n', val: c => c.fl_sum / c.fl_n, dom: [1, 5], fmt: v => v.toFixed(1) + '階',
+    desc: '階数が分かる建物の平均。都心と高層住宅の集まる所で濃くなります。' },
+  { id: 'zone', label: '用途地域の系統(最新ポリゴン)', den: 'zn_n', cat: true, dom: null,
+    val: c => { const m = Math.max(c.zn_res, c.zn_com, c.zn_ind); return m === c.zn_res ? 0 : m === c.zn_com ? 1 : 2; },
+    cats: [['住居系', '#74c476'], ['商業系', '#e6550d'], ['工業系', '#3182bd']],
+    desc: 'セル内の建物が立つ用途地域の、多数派の系統(住居系・商業系・工業系)。' },
+];
+const FIELDS = ['n','ns','res','apt','comm','ind','st_known','st_fire','st_wood','yr_n','yr_sum','fl_n','fl_sum','fl_ge4','zn_n','zn_res','zn_com','zn_ind'];
+
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+function ramp(t) {
+  t = Math.max(0, Math.min(1, t)); const k = t * (RAMP.length - 1), i = Math.min(RAMP.length - 2, Math.floor(k)), f = k - i;
+  const a = hex(RAMP[i]), b = hex(RAMP[i + 1]);
+  return '#' + a.map((v, j) => Math.round(v + (b[j] - v) * f).toString(16).padStart(2, '0')).join('');
+}
+const tileLon = (x, z) => x / 2 ** z * 360 - 180;
+const tileLat = (y, z) => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / 2 ** z))) * 180 / Math.PI;
+
+const sel = document.getElementById('metric'), zsel = document.getElementById('zsel'), min = document.getElementById('min');
+METRICS.forEach((m, i) => sel.add(new Option(m.label, i)));
+let G = null, map;
+
+function aggregate(z) {
+  const sh = 17 - z, M = new Map();
+  for (let i = 0; i < G.x.length; i++) {
+    const k = (G.x[i] >> sh) * 1e6 + (G.y[i] >> sh);
+    let c = M.get(k);
+    if (!c) { c = { x: G.x[i] >> sh, y: G.y[i] >> sh }; FIELDS.forEach(f => c[f] = 0); M.set(k, c); }
+    FIELDS.forEach(f => c[f] += G[f][i]);
+  }
+  return [...M.values()];
+}
+function build() {
+  const m = METRICS[sel.value], z = +zsel.value, minN = +min.value;
+  document.getElementById('minv').textContent = minN;
+  document.getElementById('desc').textContent = m.desc;
+  const feats = aggregate(z).map(c => {
+    const ok = c[m.den] >= Math.max(minN, 1), v = ok ? m.val(c) : null;
+    const col = !ok ? '#bdbdbd' : m.cat ? m.cats[v][1] : ramp((v - m.dom[0]) / (m.dom[1] - m.dom[0]));
+    const t = `${z}/${c.x}/${c.y}`;
+    const body = `<b>空間ID ${t}</b><br>建物 ${c.n}棟、属性あり ${c.ns}棟(${pct(c.ns / c.n)})<br>` + (c.ns ? `住宅系 ${pct(c.res / c.ns)}、業務・商業 ${pct(c.comm / c.ns)}、工場・倉庫 ${pct(c.ind / c.ns)}<br>` +
+      (c.st_known ? `耐火造 ${pct(c.st_fire / c.st_known)}、木造 ${pct(c.st_wood / c.st_known)}<br>` : '') +
+      (c.yr_n ? `平均築年 ${(c.yr_sum / c.yr_n).toFixed(0)}年、` : '') + (c.fl_n ? `平均 ${(c.fl_sum / c.fl_n).toFixed(1)}階(4階以上 ${pct(c.fl_ge4 / c.fl_n)})` : '') : '');
+    const w = tileLon(c.x, z), e = tileLon(c.x + 1, z), n = tileLat(c.y, z), s = tileLat(c.y + 1, z);
+    return { type: 'Feature', properties: { c: col, o: ok ? 0.72 : 0.28, p: body + (ok ? '' : '<br><small>棟数が少ないため割合は出していません</small>') },
+      geometry: { type: 'Polygon', coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]] } };
+  });
+  map.getSource('g').setData({ type: 'FeatureCollection', features: feats });
+  const lg = document.getElementById('legend');
+  lg.innerHTML = m.cat ? m.cats.map(([n, c]) => `<div><i style="background:${c}"></i>${n}</div>`).join('') + '<div><i style="background:#bdbdbd"></i>棟数が少ない</div>'
+    : `<div>${m.label}</div><div class="bar" style="background:linear-gradient(90deg,${RAMP.join(',')})"></div><div class="row"><span>${m.fmt(m.dom[0])}</span><span>${m.fmt(m.dom[1])}</span></div><div><i style="background:#bdbdbd"></i>棟数が少ない</div>`;
+}
+
+map = new maplibregl.Map({ container: 'map', style: STYLE, center: [141.35, 43.07], zoom: 10.3, attributionControl: { compact: true } });
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
+map.on('load', async () => {
+  G = await (await fetch('data/grid.json')).json();
+  // 塗りは、最初の道路・建築物レイヤーの直前に入れる(道路・建物・注記の下になる)
+  const before = map.getStyle().layers.find(l => l['source-layer'] === 'RdCL' || l['source-layer'] === 'BldA')?.id;
+  map.addSource('g', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'g-fill', type: 'fill', source: 'g', paint: { 'fill-color': ['get', 'c'], 'fill-opacity': ['get', 'o'] } }, before);
+  map.addLayer({ id: 'g-line', type: 'line', source: 'g', paint: { 'line-color': '#ffffff', 'line-opacity': 0.5, 'line-width': 0.4 } }, before);
+  build();
+  map.on('click', 'g-fill', e => new maplibregl.Popup({ maxWidth: '280px' }).setLngLat(e.lngLat).setHTML(e.features[0].properties.p).addTo(map));
+  map.on('mouseenter', 'g-fill', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'g-fill', () => map.getCanvas().style.cursor = '');
+});
+[sel, zsel, min].forEach(el => el.addEventListener('input', () => G && build()));
+</script>
+</body>
+</html>
