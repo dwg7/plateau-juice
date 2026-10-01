@@ -55,6 +55,7 @@ a{color:var(--accent)}
     <option value="15">約900m(z=15)</option>
     <option value="16" selected>約450m(z=16)</option>
     <option value="17">約220m(z=17)</option>
+    <option value="18">約110m(z=18)</option>
   </select></label>
   <label>セルの最小棟数:<span id="minv">30</span><input id="min" type="range" min="0" max="100" value="30"></label>
 </div>
@@ -67,7 +68,7 @@ a{color:var(--accent)}
 <tr><th>範囲</th><td>属性が付いているのは、主に市街化区域内の主たる建物です。市街化調整区域の建物(属性ありは0.9%)や、市街化区域内でも高さ約5m以下の建物(同じく7〜11%)には、ほとんど付きません。ここでの割合は、「属性のある建物」の中での割合で、札幌の全建物の割合ではありません。</td></tr>
 <tr><th>年代</th><td>築年の構成は、解体・建て替えを経て残った建物のものです(生存バイアス)。「その年代にどれだけ建ったか」ではありません。</td></tr>
 <tr><th>用途地域</th><td>地図の用途地域は、最新のポリゴン(urf)を使っています。建物属性側の用途地域は、2019年の変更前のものが残っている区域があります。</td></tr>
-<tr><th>格子</th><td>空間ID(z/x/y)は、Webの地図タイルと同じ分割です。z=17 を基本とし、z=16・15 は親セルへの足し合わせです。</td></tr>
+<tr><th>格子</th><td>空間ID(z/x/y)は、Webの地図タイルと同じ分割です。元の集計は z=18 で行い、z=17・16・15 は親セルへの足し合わせです。z=17(約220m)を標準とします。z=18(約110m)は1セルの棟数が少なく(中央値20棟)、割合が不安定なので、細かく見るための参考表示です。</td></tr>
 <tr><th>幾何・個体識別子</th><td>建物の形状とGMLの個体識別子は使っていません。表示するのは、セルごとの合計値のみです。</td></tr>
 </table>
 
@@ -121,7 +122,7 @@ METRICS.forEach((m, i) => sel.add(new Option(m.label, i)));
 let G = null, map;
 
 function aggregate(z) {
-  const sh = 17 - z, M = new Map();
+  const sh = G.z - z, M = new Map();
   for (let i = 0; i < G.x.length; i++) {
     const k = (G.x[i] >> sh) * 1e6 + (G.y[i] >> sh);
     let c = M.get(k);
@@ -165,6 +166,8 @@ map.on('load', async () => {
   map.on('mouseenter', 'g-fill', () => map.getCanvas().style.cursor = 'pointer');
   map.on('mouseleave', 'g-fill', () => map.getCanvas().style.cursor = '');
 });
+// z=18 は1セルの棟数が少ないので、最小棟数の既定値を下げる(手で変えた値は、集計の大きさを変えた時に上書きされる)
+zsel.addEventListener('input', () => { min.value = +zsel.value >= 18 ? 10 : 30; });
 [sel, zsel, min].forEach(el => el.addEventListener('input', () => G && build()));
 </script>
 </body>

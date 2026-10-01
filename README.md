@@ -2,7 +2,7 @@
 
 国土交通省 [Project PLATEAU](https://www.mlit.go.jp/plateau/) の3D都市モデル(札幌市、令和2年度)の建築物から、**立体形状と個体識別子を切り離し、属性(用途・構造・建築年・階数・災害リスク等)だけを取り出して**統計的に眺める試みです。
 
-**サイト: <https://dwg7.unopengis.org/plateau-juice/>**(空間ID `z/x/y` の格子で、属性の充実率や用途構成などを地図で見られます)
+**サイト: <https://dwg7.unopengis.org/plateau-juice/>**(空間ID `z/x/y` の格子で、属性の充実率や用途構成などを地図で見られます。粒度は z=15〜18 で切り替えられます)
 
 ## わかったこと(札幌市、646,474棟)
 
@@ -28,7 +28,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/fetch-plateau.py          # 建築物・都市計画・コードリストを data/raw/ へ(約7.5GB)
 .venv/bin/python scripts/extract-attributes.py     # 属性だけを Parquet 化 → data/processed/
 .venv/bin/python scripts/urf-join.py               # 都市計画ポリゴンと空間結合
-.venv/bin/python scripts/grid.py                   # 空間ID(z=17)の集計 → docs/data/grid.json
+.venv/bin/python scripts/grid.py                   # 空間ID(z=18)の集計 → docs/data/grid.json
 ```
 
 | スクリプト | 内容 |

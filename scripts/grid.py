@@ -1,12 +1,12 @@
-"""棟の重心を空間ID(z=17、表記 z/x/y)のセルに割り当て、セルごとの属性集計(件数ベース)を docs/data/grid.json に出力する。
-件数のまま持つことで、z=16・15 へはブラウザ側(docs/index.html)で親セルへ足し合わせるだけで集約できる(空間IDは入れ子)。
+"""棟の重心を空間ID(z=18、表記 z/x/y)のセルに割り当て、セルごとの属性集計(件数ベース)を docs/data/grid.json に出力する。
+件数のまま持つことで、z=17・16・15 へはブラウザ側(docs/index.html)で親セルへ足し合わせるだけで集約できる(空間IDは入れ子)。
 棟の座標・個体識別子は出力しない。セルごとの合計値のみ。用途地域は最新のポリゴン `urf_zone`(D18)。
 """
 import json
 import numpy as np, pandas as pd
 from pathlib import Path
 R = Path(__file__).resolve().parent.parent
-Z = 17
+Z = 18
 df = pd.read_parquet(R / "data/processed/sapporo_buildings_urf.parquet")
 n = 2 ** Z
 df["x"] = np.floor((df.lon + 180) / 360 * n).astype(int)

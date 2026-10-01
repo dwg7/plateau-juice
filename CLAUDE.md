@@ -139,7 +139,7 @@ dwg7/plateau-juice/
   CLAUDE.md                    このファイル
   docs/
     index.html                 公開サイト(スタティック、GitHub Pages想定。D20)
-    data/grid.json             空間ID(z=17)セルごとの集計(`scripts/grid.py`)
+    data/grid.json             空間ID(z=18)セルごとの集計(`scripts/grid.py`)
     decisions/                 属性充実度の調査結果、手法選定等のADR
   scripts/
     fetch-plateau.py           札幌市PLATEAUデータの取得
